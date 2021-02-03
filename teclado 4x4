@@ -1,0 +1,98 @@
+int pinosLinha[] = {9, 8, 7, 6}; // pinos DIGITAIS onde estão conectadas as linhas do teclado  
+int pinosColuna[] = {5, 4, 3, 2}; // pinos DIGITAIS onde estão conectadas as colunas do teclado
+char teclas[4][4] = { // char 'nome'['numero de linhas']['numero de colunas'] {
+  {'1', '2', '3', 'A'}, // layout do seu teclado
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'}};
+
+int rele1 = 10;
+int rele2 = 11;
+
+int tentativas = 0; // serve para limitar as tentativas
+int tentativas_maximas = 5; // numero maximo de erros consecutivos ate bloquear
+int tempo_bloqueado_Serial = 30; // tempo que ficara bloqueado (em segundos)
+int tempo_bloqueado = tempo_bloqueado_Serial * 1000; // transforma em milisegundos (o arduino trabalha em milisegundos)
+
+int num_senha = 0; // serve para verificar se todos os digitos da senha ja foram precionadas
+String senha = "12522"; // senha
+int tamanho_senha = 5; // tamanho da senha (numero de caracteres)
+String input_senha; // variavel onde será salvo a senha que o usuario digitar
+
+void setup() {
+  for (int nL = 0; nL <= 3; nL++) { // difine todas as linhas como saida e liga
+    pinMode(pinosLinha[nL], OUTPUT);
+    digitalWrite(pinosLinha[nL], HIGH);
+  }
+
+  for (int nC = 0; nC <= 3; nC++) { // define todas as colunas como entrada
+    pinMode(pinosColuna[nC], INPUT_PULLUP);
+  }
+
+  pinMode(rele2, OUTPUT); // define o segundo rele como saida
+  digitalWrite(rele2, HIGH); // desliga o segundo rele (modulos rele trabalham ao contrario (HIGH = desligar, LOW = ligar))
+  pinMode(rele1, OUTPUT); // define o primeito rele como saida
+  digitalWrite(rele1, HIGH); // desliga o primeiro rele
+ 
+  Serial.begin(9600); // inicia o Serial com a velocidade 9600 
+  // escreve na tela um menu
+  Serial.println();
+  Serial.println("====================");
+  Serial.println("    teclado 4x4     ");
+  Serial.println("====================");
+  Serial.println();
+  Serial.println("Aguardando recebimento de alguma tecla....");
+  Serial.println();
+}
+
+void loop() {
+    for (int nL = 0; nL <= 3; nL++) {
+      digitalWrite(pinosLinha[nL], LOW); // desliga a linha pra iniciar a verificação
+     
+      for (int nC = 0; nC <= 3; nC++) {
+        if (digitalRead(pinosColuna[nC] == LOW))  {
+          while(digitalRead(pinosColuna[nC]) == LOW){
+            Serial.print("[TECLA PRESSIONADA] ");
+            Serial.println(teclas[nL][nC]);
+            input_senha += String(teclas[nL][nC]);
+            num_senha++;
+            delay(260);
+          }
+          if (num_senha >= tamanho_senha) {
+            if (input_senha == senha) {
+              Serial.println("[ACESSO LIBERADO]"); // exibe uma mensagem qunaod a senha estiver correta 
+              digitalWrite(rele1, LOW);
+              delay(500);
+              digitalWrite(rele1, HIGH);
+              tentativas = 0;
+            }
+            else {
+              Serial.println("[ERRO] Senha incorreta"); // exibe uma mensagem quando a senha estiver incorreta
+              digitalWrite(rele2, LOW);
+              delay(100);
+              digitalWrite(rele2, HIGH);
+              tentativas++;
+            }
+            input_senha = "";
+            num_senha = 0;
+          }
+        }
+        if (tentativas == tentativas_maximas) {
+          digitalWrite(rele2, LOW); // liga o segundo rele
+           // mostra na Serial que bloqueou seu acesso
+          Serial.print("Você errou ");
+          Serial.print(tentativas_maximas);
+          Serial.print(" vezes seguidas, o sistema bloqueou suas tentativa por ");
+          Serial.print(tempo_bloqueado_Serial);
+          Serial.println(" segundos");
+          delay(tempo_bloqueado); // bloqueia o acesso
+          Serial.println("Acesso liberado para novas tentativas");
+          digitalWrite(rele2, HIGH); // desliga o segundo rele
+          tentativas = 0; // define as tentativas como 0, para poder liberar o acesso de volta
+        }
+      }
+
+      digitalWrite(pinosLinha[nL], HIGH); // ligas a linha de novo
+    }
+    delay(10);
+}
